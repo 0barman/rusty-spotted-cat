@@ -1,1 +1,1 @@
-# rusty-spotted-cat
+# rusty-cat
