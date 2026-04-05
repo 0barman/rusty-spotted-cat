@@ -16,6 +16,8 @@ pub struct DownloadPounceBuilder {
     client_file_sign: Option<String>,
     breakpoint_download: Option<Arc<dyn BreakpointDownload + Send + Sync>>,
     breakpoint_download_http: Option<BreakpointDownloadHttpConfig>,
+    /// 每个分片的最大重试次数（仅对 chunk 传输生效）。
+    max_chunk_retries: u32,
 }
 
 impl DownloadPounceBuilder {
@@ -37,6 +39,7 @@ impl DownloadPounceBuilder {
             client_file_sign: None,
             breakpoint_download: None,
             breakpoint_download_http: None,
+            max_chunk_retries: PounceTask::DEFAULT_MAX_CHUNK_RETRIES,
         }
     }
 
@@ -78,6 +81,12 @@ impl DownloadPounceBuilder {
         self
     }
 
+    /// 配置每个分片的最大重试次数（默认 3）。
+    pub fn with_max_chunk_retries(mut self, retries: u32) -> Self {
+        self.max_chunk_retries = PounceTask::normalized_max_chunk_retries(retries);
+        self
+    }
+
     pub fn build(self) -> PounceTask {
         PounceTask {
             direction: Direction::Download,
@@ -92,6 +101,7 @@ impl DownloadPounceBuilder {
             breakpoint_upload: None,
             breakpoint_download: self.breakpoint_download,
             breakpoint_download_http: self.breakpoint_download_http,
+            max_chunk_retries: self.max_chunk_retries,
         }
     }
 }

@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use reqwest::header::HeaderMap;
 use reqwest::Method;
+use tokio::fs::File;
+use tokio::sync::Mutex;
 
 use crate::direction::Direction;
 use crate::http_breakpoint::{BreakpointDownload, BreakpointDownloadHttpConfig, BreakpointUpload};
@@ -24,6 +26,10 @@ pub struct TransferTask {
     breakpoint_upload: Arc<dyn BreakpointUpload + Send + Sync>,
     breakpoint_download: Arc<dyn BreakpointDownload + Send + Sync>,
     http_client: Option<reqwest::Client>,
+    /// 任务级上传文件句柄槽位，避免每个 chunk 反复 open。
+    upload_file_slot: Arc<Mutex<Option<File>>>,
+    /// 任务级下载文件句柄槽位，避免每个 chunk 反复 open/create。
+    download_file_slot: Arc<Mutex<Option<File>>>,
 }
 
 impl std::fmt::Debug for TransferTask {
@@ -61,6 +67,8 @@ impl TransferTask {
             breakpoint_upload: inner.breakpoint_upload().clone(),
             breakpoint_download: inner.breakpoint_download().clone(),
             http_client: inner.http_client_ref().cloned(),
+            upload_file_slot: Arc::new(Mutex::new(None)),
+            download_file_slot: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -114,5 +122,13 @@ impl TransferTask {
 
     pub(crate) fn http_client_ref(&self) -> Option<&reqwest::Client> {
         self.http_client.as_ref()
+    }
+
+    pub(crate) fn upload_file_slot(&self) -> &Arc<Mutex<Option<File>>> {
+        &self.upload_file_slot
+    }
+
+    pub(crate) fn download_file_slot(&self) -> &Arc<Mutex<Option<File>>> {
+        &self.download_file_slot
     }
 }
