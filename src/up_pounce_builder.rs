@@ -15,6 +15,8 @@ pub struct UploadPounceBuilder {
     method: Method,
     headers: HeaderMap,
     breakpoint_upload: Option<Arc<dyn BreakpointUpload + Send + Sync>>,
+    /// 每个分片的最大重试次数（仅对 chunk 传输生效）。
+    max_chunk_retries: u32,
 }
 
 impl UploadPounceBuilder {
@@ -28,6 +30,7 @@ impl UploadPounceBuilder {
             method: Method::POST,
             headers: HeaderMap::new(),
             breakpoint_upload: None,
+            max_chunk_retries: PounceTask::DEFAULT_MAX_CHUNK_RETRIES,
         }
     }
 
@@ -59,6 +62,12 @@ impl UploadPounceBuilder {
         self
     }
 
+    /// 配置每个分片的最大重试次数（默认 3）。
+    pub fn with_max_chunk_retries(mut self, retries: u32) -> Self {
+        self.max_chunk_retries = PounceTask::normalized_max_chunk_retries(retries);
+        self
+    }
+
     /// 根据当前 `file_path` 读取 [`std::fs::metadata`] 得到 `total_size`。
     pub fn build(self) -> io::Result<PounceTask> {
         let total_size = std::fs::metadata(&self.file_path)?.len();
@@ -75,6 +84,7 @@ impl UploadPounceBuilder {
             breakpoint_upload: self.breakpoint_upload,
             breakpoint_download: None,
             breakpoint_download_http: None,
+            max_chunk_retries: self.max_chunk_retries,
         })
     }
 }

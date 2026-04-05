@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::MeowError;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum TransferStatus {
@@ -18,7 +18,7 @@ pub enum TransferStatus {
     Complete,
 
     /// 上传/下载出错
-    Failed(Error),
+    Failed(MeowError),
 
     /// 上传/下载取消
     Canceled,

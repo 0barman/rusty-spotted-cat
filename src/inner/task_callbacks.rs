@@ -1,4 +1,7 @@
-use crate::inner::executor::ProgressCb;
+use crate::file_transfer_record::FileTransferRecord;
+use std::sync::Arc;
+
+pub(crate) type ProgressCb = Arc<dyn Fn(FileTransferRecord) + Send + Sync + 'static>;
 
 pub(crate) struct TaskCallbacks {
     progress_cb: Option<ProgressCb>,

@@ -1,7 +1,7 @@
 //! 断点上传/下载的 HTTP 形态由业务决定：通过 [`BreakpointUpload`] / [`BreakpointDownload`]
 //! 从外部构造 `multipart::Form`、合并 Header，便于作为第三方库接入不同后端。
 
-use crate::error::{ECode, Error};
+use crate::error::{InnerErrorCode, MeowError};
 use crate::transfer_task::TransferTask;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::multipart;
@@ -25,10 +25,10 @@ pub trait BreakpointUpload: Send + Sync {
         task: &TransferTask,
         chunk: &[u8],
         offset: u64,
-    ) -> Result<multipart::Form, Error>;
+    ) -> Result<multipart::Form, MeowError>;
 
     /// 解析上传接口响应体（通常为 JSON）。
-    fn parse_upload_response(&self, body: &str) -> Result<UploadResumeInfo, Error>;
+    fn parse_upload_response(&self, body: &str) -> Result<UploadResumeInfo, MeowError>;
 }
 
 #[derive(Debug, Clone)]
@@ -75,11 +75,11 @@ impl BreakpointUpload for DefaultStyleUpload {
         task: &TransferTask,
         chunk: &[u8],
         offset: u64,
-    ) -> Result<multipart::Form, Error> {
+    ) -> Result<multipart::Form, MeowError> {
         let part = multipart::Part::bytes(chunk.to_vec())
             .file_name(KEY_UPLOAD_CHUNK_DATA)
             .mime_str("application/octet-stream")
-            .map_err(|e| Error::from_code(ECode::HttpError, e.to_string()))?;
+            .map_err(|e| MeowError::from_code(InnerErrorCode::HttpError, e.to_string()))?;
 
         Ok(multipart::Form::new()
             .part(KEY_FILE, part)
@@ -91,16 +91,32 @@ impl BreakpointUpload for DefaultStyleUpload {
             .text(KEY_TOTAL_SIZE, task.total_size().to_string()))
     }
 
-    fn parse_upload_response(&self, body: &str) -> Result<UploadResumeInfo, Error> {
+    fn parse_upload_response(&self, body: &str) -> Result<UploadResumeInfo, MeowError> {
         if body.trim().is_empty() {
+            crate::meow_flow_log!(
+                "upload_protocol",
+                "empty upload response body, fallback default"
+            );
             return Ok(UploadResumeInfo::default());
         }
         let v: DefaultUploadResp = serde_json::from_str(body).map_err(|e| {
-            Error::from_code(
-                ECode::HttpError,
+            crate::meow_flow_log!(
+                "upload_protocol",
+                "upload response parse failed: body_len={} err={}",
+                body.len(),
+                e
+            );
+            MeowError::from_code(
+                InnerErrorCode::ResponseParseError,
                 format!("upload response json: {e}, body: {body}"),
             )
         })?;
+        crate::meow_flow_log!(
+            "upload_protocol",
+            "upload response parsed: file_id_present={} next_byte={:?}",
+            v.file_id.is_some(),
+            v.next_byte
+        );
         Ok(UploadResumeInfo {
             completed_file_id: v.file_id,
             next_byte: v.next_byte.map(|n| if n < 0 { 0u64 } else { n as u64 }),
@@ -109,7 +125,7 @@ impl BreakpointUpload for DefaultStyleUpload {
 }
 
 /// 断点下载中与 HTTP 请求相关的可配置项（Range GET 的 Accept、HEAD 行为等），通常放在
-/// [`TransferTask`] 上由调用方传入；未设置时由 [`crate::engine_config::EngineConfig`] 在入队时补齐。
+/// [`TransferTask`] 上由调用方传入；未设置时由 [`crate::meow_config::MeowConfig`] 在入队时补齐。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BreakpointDownloadHttpConfig {
     /// 分片 GET（带 `Range`）使用的 `Accept` 头。
@@ -154,15 +170,15 @@ pub trait BreakpointDownload: Send + Sync {
     }
 
     /// 从 HEAD 响应头解析资源总字节数。
-    fn total_size_from_head(&self, headers: &HeaderMap) -> Result<u64, Error> {
+    fn total_size_from_head(&self, headers: &HeaderMap) -> Result<u64, MeowError> {
         headers
             .get(reqwest::header::CONTENT_LENGTH)
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.parse::<u64>().ok())
             .filter(|&n| n > 0)
             .ok_or_else(|| {
-                Error::from_code_str(
-                    ECode::HttpError,
+                MeowError::from_code_str(
+                    InnerErrorCode::MissingOrInvalidContentLengthFromHead,
                     "missing or invalid content-length from HEAD",
                 )
             })

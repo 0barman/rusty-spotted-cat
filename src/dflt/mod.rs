@@ -1,1 +1,1 @@
-pub mod default_http_client;
+pub(crate) mod default_http_client;

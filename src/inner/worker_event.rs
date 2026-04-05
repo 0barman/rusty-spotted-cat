@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::MeowError;
 
 use super::UniqueId;
 
@@ -15,7 +15,7 @@ pub(crate) enum WorkerEvent {
     },
     Failed {
         key: UniqueId,
-        error: Error,
+        error: MeowError,
     },
     Canceled {
         key: UniqueId,

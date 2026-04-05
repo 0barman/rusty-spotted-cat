@@ -1,10 +1,10 @@
 use crate::direction::Direction;
+use crate::ids::TaskId;
 use crate::transfer_status::TransferStatus;
-use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct FileTransferRecord {
-    uuid: Uuid,
+    task_id: TaskId,
     file_sign: String,
     file_name: String,
     total_size: u64,
@@ -15,7 +15,7 @@ pub struct FileTransferRecord {
 
 impl FileTransferRecord {
     pub fn new(
-        uuid: Uuid,
+        task_id: TaskId,
         file_sign: String,
         file_name: String,
         total_size: u64,
@@ -24,7 +24,7 @@ impl FileTransferRecord {
         direction: Direction,
     ) -> Self {
         Self {
-            uuid,
+            task_id,
             file_sign,
             file_name,
             total_size,
@@ -58,7 +58,7 @@ impl FileTransferRecord {
         self.direction
     }
 
-    pub fn uuid(&self) -> Uuid {
-        self.uuid
+    pub fn task_id(&self) -> TaskId {
+        self.task_id
     }
 }

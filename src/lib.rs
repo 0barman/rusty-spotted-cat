@@ -1,19 +1,24 @@
+pub mod chunk_outcome;
+pub(crate) mod dflt;
 pub mod direction;
-pub mod engine_config;
+pub mod down_pounce_builder;
 pub mod error;
 pub mod file_transfer_record;
-pub mod file_transfer_storage_listener;
 pub mod http_breakpoint;
-pub mod inner;
+pub mod ids;
+pub(crate) mod inner;
+pub mod log;
 pub mod meow_client;
+pub mod meow_config;
 pub mod pounce_task;
-pub mod transfer_status;
-pub use inner::chunk_outcome::ChunkOutcome;
-pub use inner::prepare_outcome::PrepareOutcome;
-pub mod dflt;
-pub mod down_pounce_builder;
+pub mod prepare_outcome;
 pub mod transfer_executor_trait;
+pub mod transfer_snapshot;
+pub mod transfer_status;
 pub mod transfer_task;
 pub mod up_pounce_builder;
-
+pub use crate::log::{
+    debug_log_listener_active, try_set_debug_log_listener, DebugLogListenerError, Log, LogLevel,
+};
+pub use ids::{GlobalProgressListenerId, TaskId};
 pub use meow_client::MeowClient;
